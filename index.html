@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Bibeltracker</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#6b7cff" />
+  <meta name="mobile-web-app-capable" content="yes" />
+
+  <!-- iOS -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Bibeltracker" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+
+  <meta name="description" content="Bibel-Lesetracker – alle 1.189 Kapitel nach JW.org" />
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #232638;
+      --border: #2e3250;
+      --accent: #6b7cff;
+      --accent2: #a78bfa;
+      --text: #e8eaf6;
+      --text-muted: #8892b0;
+      --green: #34d399;
+      --yellow: #fbbf24;
+      --red: #f87171;
+      --radius: 12px;
+      --radius-sm: 8px;
+      --nav-h: 56px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── HEADER ─────────────────────────────────────────────────────── */
+    header {
+      background: linear-gradient(160deg, #1a1d27 0%, #1e2235 100%);
+      border-bottom: 1px solid var(--border);
+      padding: max(20px, env(safe-area-inset-top)) 16px 14px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .header-top {
+      max-width: 960px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .app-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .app-icon {
+      width: 38px; height: 38px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 19px;
+      flex-shrink: 0;
+    }
+    h1 { font-size: 1.15rem; font-weight: 700; }
+    h1 span { color: var(--accent2); }
+    .app-sub { font-size: 0.65rem; color: var(--text-muted); margin-top: 1px; }
+
+    .header-stats { display: flex; gap: 14px; }
+    .stat-box { text-align: center; }
+    .stat-num {
+      font-size: 1.25rem; font-weight: 800;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      line-height: 1.2;
+    }
+    .stat-label { font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+
+    .overall-progress {
+      max-width: 960px; margin: 10px auto 0;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .progress-bar {
+      flex: 1; height: 5px; background: var(--border); border-radius: 99px; overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%; border-radius: 99px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      transition: width 0.4s ease;
+    }
+    .progress-pct { font-size: 0.8rem; font-weight: 700; color: var(--accent2); min-width: 38px; text-align: right; }
+
+    /* search inside header */
+    .header-search {
+      max-width: 960px; margin: 10px auto 0;
+      position: relative;
+    }
+    .header-search svg {
+      position: absolute; left: 11px; top: 50%; transform: translateY(-50%);
+      opacity: 0.35; pointer-events: none;
+    }
+    input[type="search"] {
+      width: 100%; padding: 10px 10px 10px 36px;
+      background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+      border-radius: 10px; color: var(--text); font-size: 0.88rem;
+      outline: none; transition: border-color 0.2s, background 0.2s;
+      -webkit-appearance: none;
+    }
+    input[type="search"]:focus {
+      border-color: var(--accent);
+      background: rgba(107,124,255,0.06);
+    }
+    input[type="search"]::placeholder { color: var(--text-muted); }
+
+    /* Desktop tabs (only visible ≥ 768 px) */
+    .desktop-tabs {
+      display: none;
+      max-width: 960px; margin: 12px auto 0;
+      gap: 4px;
+    }
+    .tab {
+      padding: 9px 18px; border: none; background: transparent;
+      color: var(--text-muted); font-size: 0.88rem; font-weight: 600;
+      cursor: pointer; border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+      transition: all 0.2s; border-bottom: 3px solid transparent;
+    }
+    .tab.active { color: var(--text); border-bottom-color: var(--accent); }
+    .tab:hover:not(.active) { color: var(--text); }
+
+    /* ── BOTTOM NAV (mobile only) ────────────────────────────────────── */
+    .bottom-nav {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      display: flex;
+      padding-bottom: env(safe-area-inset-bottom);
+      z-index: 100;
+      -webkit-backdrop-filter: blur(12px);
+      backdrop-filter: blur(12px);
+    }
+    .nav-btn {
+      flex: 1;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 9px 4px 7px;
+      border: none; background: transparent;
+      color: var(--text-muted);
+      font-size: 0.66rem; font-weight: 600; letter-spacing: 0.01em;
+      cursor: pointer; gap: 3px;
+      transition: color 0.15s;
+      -webkit-tap-highlight-color: transparent;
+      min-height: var(--nav-h);
+    }
+    .nav-btn.active { color: var(--accent); }
+    .nav-btn:active { opacity: 0.65; }
+    .nav-icon { font-size: 1.2rem; line-height: 1; display: block; }
+
+    /* ── MORE SHEET ──────────────────────────────────────────────────── */
+    .sheet-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.5); z-index: 200;
+      align-items: flex-end;
+    }
+    .sheet-overlay.open { display: flex; }
+    .more-sheet {
+      width: 100%;
+      background: var(--surface);
+      border-radius: 20px 20px 0 0;
+      border-top: 1px solid var(--border);
+      padding-bottom: calc(12px + env(safe-area-inset-bottom));
+      max-height: 82vh;
+      overflow-y: auto;
+    }
+    .sheet-handle {
+      width: 34px; height: 4px;
+      background: var(--border); border-radius: 2px;
+      margin: 12px auto 0;
+    }
+    .sheet-section { padding: 0 20px; }
+    .sheet-section-title {
+      font-size: 0.65rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.09em; color: var(--text-muted);
+      padding: 14px 0 6px;
+    }
+    .sheet-item {
+      display: flex; align-items: center;
+      padding: 13px 0;
+      border-bottom: 1px solid var(--border);
+      gap: 14px;
+    }
+    .sheet-item:last-child { border-bottom: none; }
+    .sheet-item-icon { font-size: 1rem; width: 22px; text-align: center; flex-shrink: 0; }
+    .sheet-item-label { flex: 1; font-size: 0.9rem; color: var(--text); }
+    .sheet-item-value { font-size: 0.82rem; color: var(--accent2); font-weight: 600; }
+    button.sheet-item {
+      width: 100%; background: none; border: none;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer; text-align: left;
+      -webkit-tap-highlight-color: transparent;
+    }
+    button.sheet-item:last-child { border-bottom: none; }
+    button.sheet-item:active { background: var(--surface2); margin: 0 -20px; padding: 13px 20px; width: calc(100% + 40px); }
+    .sheet-item.danger .sheet-item-label { color: var(--red); }
+
+    /* ── MAIN ────────────────────────────────────────────────────────── */
+    main {
+      max-width: 960px; margin: 0 auto;
+      padding: 12px 14px;
+      /* space for bottom nav on mobile, handled by media query below */
+    }
+
+    /* ── BOOK GRID ───────────────────────────────────────────────────── */
+    .books-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 10px;
+    }
+
+    /* ── BOOK CARD ───────────────────────────────────────────────────── */
+    .book-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+    .book-card.expanded { border-color: var(--accent); }
+
+    .book-header {
+      padding: 14px 16px;
+      cursor: pointer;
+      display: flex; align-items: center; gap: 12px;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      min-height: 52px;
+    }
+    .book-num { font-size: 0.65rem; font-weight: 700; color: var(--text-muted); min-width: 22px; }
+    .book-name { flex: 1; font-size: 0.93rem; font-weight: 600; }
+    .book-progress-text { font-size: 0.76rem; color: var(--text-muted); font-weight: 600; min-width: 44px; text-align: right; }
+    .book-progress-text.done { color: var(--green); }
+    .chevron { transition: transform 0.25s; opacity: 0.35; flex-shrink: 0; }
+    .book-card.expanded .chevron { transform: rotate(180deg); }
+
+    .book-bar-wrap { padding: 0 16px 10px; }
+    .book-bar { height: 3px; background: var(--border); border-radius: 99px; overflow: hidden; }
+    .book-bar-fill { height: 100%; border-radius: 99px; transition: width 0.4s ease; }
+
+    /* ── CHAPTERS ────────────────────────────────────────────────────── */
+    .chapters-section { display: none; padding: 0 12px 14px; }
+    .book-card.expanded .chapters-section { display: block; }
+
+    .chapter-actions { display: flex; gap: 8px; margin-bottom: 10px; }
+    .btn-sm {
+      padding: 8px 12px; font-size: 0.75rem;
+      border: 1px solid var(--border); background: var(--surface2);
+      color: var(--text-muted); border-radius: 8px; cursor: pointer;
+      transition: all 0.15s; -webkit-tap-highlight-color: transparent;
+    }
+    .btn-sm:active { background: var(--border); color: var(--text); }
+    .btn-sm.danger:active { color: var(--red); border-color: var(--red); }
+
+    .chapters-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chapter-btn {
+      width: 42px; height: 42px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 9px; font-size: 0.8rem; font-weight: 600;
+      cursor: pointer; border: 1px solid var(--border);
+      background: var(--surface2); color: var(--text-muted);
+      transition: transform 0.1s, background 0.15s, border-color 0.15s;
+      user-select: none; -webkit-tap-highlight-color: transparent;
+    }
+    .chapter-btn:active { transform: scale(0.88); }
+    .chapter-btn.read {
+      background: linear-gradient(135deg, #1d4c3b, #1a3d50);
+      border-color: var(--green);
+      color: var(--green);
+    }
+
+    /* ── SECTION HEADER ──────────────────────────────────────────────── */
+    .section-header {
+      grid-column: 1 / -1;
+      display: flex; align-items: center; gap: 12px;
+      margin: 6px 0 4px;
+    }
+    .section-title { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); white-space: nowrap; }
+    .section-line { flex: 1; height: 1px; background: var(--border); }
+    .section-stat { font-size: 0.7rem; color: var(--text-muted); white-space: nowrap; }
+
+    /* ── TOAST ───────────────────────────────────────────────────────── */
+    .toast {
+      position: fixed; left: 50%; transform: translateX(-50%);
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 10px 18px;
+      font-size: 0.88rem; font-weight: 600;
+      opacity: 0; transition: opacity 0.3s; pointer-events: none;
+      z-index: 999; white-space: nowrap;
+    }
+    .toast.show { opacity: 1; }
+
+    /* ── EMPTY ───────────────────────────────────────────────────────── */
+    .empty-msg { grid-column: 1 / -1; text-align: center; padding: 48px; color: var(--text-muted); }
+
+    /* ── SHARED OVERLAY / DIALOG ─────────────────────────────────────── */
+    .date-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.6); z-index: 250;
+      align-items: center; justify-content: center;
+      padding: 20px;
+    }
+    .date-overlay.open { display: flex; }
+    .date-dialog, .io-dialog {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 16px; padding: 24px;
+      width: 100%; max-width: 360px;
+      display: flex; flex-direction: column; gap: 14px;
+    }
+    .io-dialog { max-width: 400px; }
+    .date-dialog h2, .io-dialog h2 { font-size: 1rem; font-weight: 700; }
+    .date-dialog p { font-size: 0.83rem; color: var(--text-muted); }
+    input[type="date"] {
+      width: 100%; padding: 11px 12px;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); color: var(--text); font-size: 0.95rem;
+      outline: none; -webkit-appearance: none; transition: border-color 0.2s;
+    }
+    input[type="date"]:focus { border-color: var(--accent); }
+    .date-dialog-actions { display: flex; gap: 8px; justify-content: flex-end; }
+    .btn {
+      padding: 10px 16px; border: 1px solid var(--border);
+      background: var(--surface2); color: var(--text-muted);
+      border-radius: var(--radius-sm); cursor: pointer; font-size: 0.85rem;
+      transition: all 0.2s; white-space: nowrap;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn:active { border-color: var(--accent); color: var(--text); }
+    .btn-primary {
+      padding: 11px 20px; border: none;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff; font-weight: 700; border-radius: var(--radius-sm);
+      cursor: pointer; font-size: 0.9rem;
+      -webkit-tap-highlight-color: transparent; transition: opacity 0.2s;
+    }
+    .btn-primary:active { opacity: 0.8; }
+    .io-section {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 14px;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .io-section h3 { font-size: 0.88rem; font-weight: 700; }
+    .io-section p  { font-size: 0.8rem; color: var(--text-muted); line-height: 1.5; }
+    .io-divider { height: 1px; background: var(--border); }
+
+    /* ── COMPLETION ──────────────────────────────────────────────────── */
+    .completion-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.88); z-index: 300;
+      align-items: center; justify-content: center; padding: 20px;
+    }
+    .completion-overlay.open { display: flex; }
+    .completion-card {
+      background: linear-gradient(135deg, #1a1d27, #1d2a3a);
+      border: 1px solid var(--green); border-radius: 20px;
+      padding: 36px 28px; max-width: 400px; width: 100%;
+      text-align: center; display: flex; flex-direction: column;
+      align-items: center; gap: 14px;
+    }
+    .completion-icon { font-size: 3rem; }
+    .completion-title {
+      font-size: 1.5rem; font-weight: 800;
+      background: linear-gradient(135deg, var(--green), var(--accent2));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .completion-sub { color: var(--text-muted); font-size: 0.88rem; line-height: 1.5; }
+    .completion-dates { display: flex; gap: 16px; margin-top: 6px; }
+    .completion-date-box {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 10px; padding: 10px 14px; text-align: center;
+    }
+    .completion-date-box .d-label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+    .completion-date-box .d-val { font-size: 0.95rem; font-weight: 700; color: var(--text); }
+    .completion-duration { font-size: 1.7rem; font-weight: 800; color: var(--green); }
+    .completion-duration-label { font-size: 0.76rem; color: var(--text-muted); margin-top: -8px; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+    .done-badge { animation: pulse 2s ease-in-out infinite; }
+
+    /* ── RESPONSIVE ──────────────────────────────────────────────────── */
+    @media (max-width: 767px) {
+      body { padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom)); }
+      .desktop-tabs { display: none !important; }
+      .books-grid { grid-template-columns: 1fr; }
+      main { padding: 10px; }
+      .toast { bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 10px); }
+      .completion-card { padding: 28px 20px; }
+      .completion-dates { gap: 10px; }
+    }
+    @media (min-width: 768px) {
+      .bottom-nav { display: none; }
+      .desktop-tabs { display: flex; }
+      body { padding-bottom: env(safe-area-inset-bottom); }
+      .toast { bottom: 24px; }
+      .book-card:hover { border-color: var(--accent); transform: translateY(-1px); }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-top">
+    <div class="app-title">
+      <div class="app-icon">📖</div>
+      <div>
+        <h1>Bibel<span>tracker</span></h1>
+        <div class="app-sub">JW.org · 1.189 Kapitel</div>
+      </div>
+    </div>
+    <div class="header-stats">
+      <div class="stat-box">
+        <div class="stat-num" id="stat-read">0</div>
+        <div class="stat-label">Gelesen</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-num" id="stat-remaining">1189</div>
+        <div class="stat-label">Übrig</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-num" id="stat-books">0</div>
+        <div class="stat-label">Bücher ✓</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="overall-progress">
+    <div class="progress-bar">
+      <div class="progress-fill" id="overall-fill" style="width:0%"></div>
+    </div>
+    <div class="progress-pct" id="overall-pct">0 %</div>
+  </div>
+
+  <!-- Desktop tabs -->
+  <div class="desktop-tabs">
+    <button class="tab active" onclick="switchTab('at')" data-tab="at">Altes Testament (39)</button>
+    <button class="tab" onclick="switchTab('nt')" data-tab="nt">Neues Testament (27)</button>
+    <button class="tab" onclick="switchTab('all')" data-tab="all">Alle Bücher</button>
+  </div>
+
+  <div class="header-search">
+    <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+      <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+    </svg>
+    <input type="search" id="search" placeholder="Buch suchen …" oninput="renderBooks()" />
+  </div>
+</header>
+
+<!-- Bottom Navigation (mobile only) -->
+<nav class="bottom-nav">
+  <button class="nav-btn active" onclick="switchTab('at')" data-tab="at">
+    <span class="nav-icon">📜</span>
+    AT
+  </button>
+  <button class="nav-btn" onclick="switchTab('nt')" data-tab="nt">
+    <span class="nav-icon">🐑</span>
+    NT
+  </button>
+  <button class="nav-btn" onclick="switchTab('all')" data-tab="all">
+    <span class="nav-icon">📚</span>
+    Alle
+  </button>
+  <button class="nav-btn" onclick="openMoreSheet()">
+    <span class="nav-icon">⋯</span>
+    Mehr
+  </button>
+</nav>
+
+<main>
+  <div class="books-grid" id="books-grid"></div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<!-- More Sheet (mobile) -->
+<div class="sheet-overlay" id="sheet-overlay" onclick="handleSheetOverlayClick(event)">
+  <div class="more-sheet" id="more-sheet">
+    <div class="sheet-handle"></div>
+
+    <div class="sheet-section">
+      <div class="sheet-section-title">Lesefortschritt</div>
+      <button class="sheet-item" onclick="closeMoreSheet(); openDateDialog()">
+        <span class="sheet-item-icon">📅</span>
+        <span class="sheet-item-label">Startdatum</span>
+        <span class="sheet-item-value" id="sheet-start-date">Eintragen</span>
+      </button>
+      <div class="sheet-item">
+        <span class="sheet-item-icon">🏁</span>
+        <span class="sheet-item-label">Abgeschlossen</span>
+        <span class="sheet-item-value" id="sheet-end-date">—</span>
+      </div>
+      <div class="sheet-item" id="sheet-duration-row" style="display:none">
+        <span class="sheet-item-icon">⏱</span>
+        <span class="sheet-item-label">Lesezeit</span>
+        <span class="sheet-item-value" id="sheet-duration">—</span>
+      </div>
+    </div>
+
+    <div class="sheet-section">
+      <div class="sheet-section-title">Ansicht</div>
+      <button class="sheet-item" onclick="closeMoreSheet(); expandAll()">
+        <span class="sheet-item-icon">▼</span>
+        <span class="sheet-item-label">Alle aufklappen</span>
+      </button>
+      <button class="sheet-item" onclick="closeMoreSheet(); collapseAll()">
+        <span class="sheet-item-icon">▶</span>
+        <span class="sheet-item-label">Alle zuklappen</span>
+      </button>
+    </div>
+
+    <div class="sheet-section">
+      <div class="sheet-section-title">Daten</div>
+      <button class="sheet-item" onclick="closeMoreSheet(); openIODialog()">
+        <span class="sheet-item-icon">💾</span>
+        <span class="sheet-item-label">Fortschritt sichern & wiederherstellen</span>
+      </button>
+      <button class="sheet-item danger" onclick="closeMoreSheet(); confirmReset()">
+        <span class="sheet-item-icon">🗑</span>
+        <span class="sheet-item-label">Zurücksetzen</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Export / Import Dialog -->
+<div class="date-overlay" id="io-overlay">
+  <div class="io-dialog">
+    <h2>Fortschritt sichern & wiederherstellen</h2>
+    <div class="io-section">
+      <h3>&#8659; Exportieren</h3>
+      <p>Speichert deinen gesamten Fortschritt, Startdatum und Enddatum als Datei. Ideal beim Gerätewechsel.</p>
+      <button class="btn-primary" onclick="exportData()">Fortschritt herunterladen (.json)</button>
+    </div>
+    <div class="io-divider"></div>
+    <div class="io-section">
+      <h3>&#8657; Importieren</h3>
+      <p>Stelle einen zuvor exportierten Fortschritt wieder her. Achtung: Aktueller Fortschritt wird überschrieben.</p>
+      <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)"/>
+      <button class="btn-primary" onclick="document.getElementById('import-file').click()">Datei laden & wiederherstellen</button>
+    </div>
+    <button class="btn" onclick="closeIODialog()">Schliessen</button>
+  </div>
+</div>
+
+<!-- Startdatum-Dialog -->
+<div class="date-overlay" id="date-overlay">
+  <div class="date-dialog">
+    <h2>Startdatum eintragen</h2>
+    <p>Wann hast du mit dem Lesen der Bibel begonnen?</p>
+    <input type="date" id="date-input" />
+    <div class="date-dialog-actions">
+      <button class="btn" onclick="closeDateDialog()">Abbrechen</button>
+      <button class="btn-primary" onclick="saveStartDate()">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- Abschluss-Banner -->
+<div class="completion-overlay" id="completion-overlay">
+  <div class="completion-card">
+    <div class="completion-icon">🎉</div>
+    <div class="completion-title">Bibel vollständig gelesen!</div>
+    <div class="completion-sub">Du hast alle 1.189 Kapitel abgehakt. Herzlichen Glückwunsch!</div>
+    <div class="completion-dates">
+      <div class="completion-date-box">
+        <div class="d-label">Gestartet</div>
+        <div class="d-val" id="c-start">—</div>
+      </div>
+      <div class="completion-date-box">
+        <div class="d-label">Abgeschlossen</div>
+        <div class="d-val" id="c-end">—</div>
+      </div>
+    </div>
+    <div class="completion-duration" id="c-days">—</div>
+    <div class="completion-duration-label" id="c-days-label"></div>
+    <button class="btn-primary" style="margin-top:8px" onclick="closeCompletion()">Schliessen</button>
+  </div>
+</div>
+
+<script>
+// ── DATA ───────────────────────────────────────────────────────────────
+const BOOKS = [
+  // Altes Testament
+  { id:1,  name:"1. Mose",         chapters:50,  testament:"at" },
+  { id:2,  name:"2. Mose",         chapters:40,  testament:"at" },
+  { id:3,  name:"3. Mose",         chapters:27,  testament:"at" },
+  { id:4,  name:"4. Mose",         chapters:36,  testament:"at" },
+  { id:5,  name:"5. Mose",         chapters:34,  testament:"at" },
+  { id:6,  name:"Josua",           chapters:24,  testament:"at" },
+  { id:7,  name:"Richter",         chapters:21,  testament:"at" },
+  { id:8,  name:"Ruth",            chapters:4,   testament:"at" },
+  { id:9,  name:"1. Samuel",       chapters:31,  testament:"at" },
+  { id:10, name:"2. Samuel",       chapters:24,  testament:"at" },
+  { id:11, name:"1. Könige",       chapters:22,  testament:"at" },
+  { id:12, name:"2. Könige",       chapters:25,  testament:"at" },
+  { id:13, name:"1. Chronika",     chapters:29,  testament:"at" },
+  { id:14, name:"2. Chronika",     chapters:36,  testament:"at" },
+  { id:15, name:"Esra",            chapters:10,  testament:"at" },
+  { id:16, name:"Nehemia",         chapters:13,  testament:"at" },
+  { id:17, name:"Ester",           chapters:10,  testament:"at" },
+  { id:18, name:"Hiob",            chapters:42,  testament:"at" },
+  { id:19, name:"Psalmen",         chapters:150, testament:"at" },
+  { id:20, name:"Sprüche",         chapters:31,  testament:"at" },
+  { id:21, name:"Prediger",        chapters:12,  testament:"at" },
+  { id:22, name:"Hohes Lied",      chapters:8,   testament:"at" },
+  { id:23, name:"Jesaja",          chapters:66,  testament:"at" },
+  { id:24, name:"Jeremia",         chapters:52,  testament:"at" },
+  { id:25, name:"Klagelieder",     chapters:5,   testament:"at" },
+  { id:26, name:"Hesekiel",        chapters:48,  testament:"at" },
+  { id:27, name:"Daniel",          chapters:12,  testament:"at" },
+  { id:28, name:"Hosea",           chapters:14,  testament:"at" },
+  { id:29, name:"Joel",            chapters:3,   testament:"at" },
+  { id:30, name:"Amos",            chapters:9,   testament:"at" },
+  { id:31, name:"Obadja",          chapters:1,   testament:"at" },
+  { id:32, name:"Jona",            chapters:4,   testament:"at" },
+  { id:33, name:"Micha",           chapters:7,   testament:"at" },
+  { id:34, name:"Nahum",           chapters:3,   testament:"at" },
+  { id:35, name:"Habakuk",         chapters:3,   testament:"at" },
+  { id:36, name:"Zefanja",         chapters:3,   testament:"at" },
+  { id:37, name:"Haggai",          chapters:2,   testament:"at" },
+  { id:38, name:"Sacharja",        chapters:14,  testament:"at" },
+  { id:39, name:"Maleachi",        chapters:4,   testament:"at" },
+  // Neues Testament
+  { id:40, name:"Matthäus",        chapters:28,  testament:"nt" },
+  { id:41, name:"Markus",          chapters:16,  testament:"nt" },
+  { id:42, name:"Lukas",           chapters:24,  testament:"nt" },
+  { id:43, name:"Johannes",        chapters:21,  testament:"nt" },
+  { id:44, name:"Apostelgeschichte",chapters:28, testament:"nt" },
+  { id:45, name:"Römer",           chapters:16,  testament:"nt" },
+  { id:46, name:"1. Korinther",    chapters:16,  testament:"nt" },
+  { id:47, name:"2. Korinther",    chapters:13,  testament:"nt" },
+  { id:48, name:"Galater",         chapters:6,   testament:"nt" },
+  { id:49, name:"Epheser",         chapters:6,   testament:"nt" },
+  { id:50, name:"Philipper",       chapters:4,   testament:"nt" },
+  { id:51, name:"Kolosser",        chapters:4,   testament:"nt" },
+  { id:52, name:"1. Thessalonicher",chapters:5,  testament:"nt" },
+  { id:53, name:"2. Thessalonicher",chapters:3,  testament:"nt" },
+  { id:54, name:"1. Timotheus",    chapters:6,   testament:"nt" },
+  { id:55, name:"2. Timotheus",    chapters:4,   testament:"nt" },
+  { id:56, name:"Titus",           chapters:3,   testament:"nt" },
+  { id:57, name:"Philemon",        chapters:1,   testament:"nt" },
+  { id:58, name:"Hebräer",         chapters:13,  testament:"nt" },
+  { id:59, name:"Jakobus",         chapters:5,   testament:"nt" },
+  { id:60, name:"1. Petrus",       chapters:5,   testament:"nt" },
+  { id:61, name:"2. Petrus",       chapters:3,   testament:"nt" },
+  { id:62, name:"1. Johannes",     chapters:5,   testament:"nt" },
+  { id:63, name:"2. Johannes",     chapters:1,   testament:"nt" },
+  { id:64, name:"3. Johannes",     chapters:1,   testament:"nt" },
+  { id:65, name:"Judas",           chapters:1,   testament:"nt" },
+  { id:66, name:"Offenbarung",     chapters:22,  testament:"nt" },
+];
+
+const TOTAL_CHAPTERS = BOOKS.reduce((s, b) => s + b.chapters, 0);
+
+// ── STATE ──────────────────────────────────────────────────────────────
+let state = {};
+let expanded = new Set();
+let currentTab = 'at';
+let startDate = null;
+let endDate   = null;
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem('bibletracker_v1');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      for (const [k, v] of Object.entries(parsed)) {
+        state[k] = new Set(v);
+      }
+    }
+  } catch(e) {}
+  startDate = localStorage.getItem('bibletracker_startdate') || null;
+  endDate   = localStorage.getItem('bibletracker_enddate')   || null;
+}
+
+function saveState() {
+  const out = {};
+  for (const [k, v] of Object.entries(state)) {
+    out[k] = [...v];
+  }
+  localStorage.setItem('bibletracker_v1', JSON.stringify(out));
+}
+
+function isRead(bookId, ch) {
+  return state[bookId]?.has(ch) ?? false;
+}
+
+function readCount(bookId) {
+  return state[bookId]?.size ?? 0;
+}
+
+function toggleChapter(bookId, ch) {
+  if (!state[bookId]) state[bookId] = new Set();
+  const wasRead = state[bookId].has(ch);
+  if (wasRead) {
+    state[bookId].delete(ch);
+  } else {
+    state[bookId].add(ch);
+    localStorage.setItem('bibletracker_lastread', todayISO());
+    showCheer();
+  }
+  saveState();
+  updateGlobalStats();
+  updateBookCard(bookId);
+  checkCompletion();
+}
+
+function markAllBook(bookId, readAll) {
+  const book = BOOKS.find(b => b.id === bookId);
+  if (!book) return;
+  if (readAll) {
+    state[bookId] = new Set(Array.from({length: book.chapters}, (_, i) => i + 1));
+  } else {
+    state[bookId] = new Set();
+  }
+  saveState();
+  updateGlobalStats();
+  updateBookCard(bookId);
+  checkCompletion();
+}
+
+// ── STATS ──────────────────────────────────────────────────────────────
+function getTotalRead() {
+  let n = 0;
+  for (const s of Object.values(state)) n += s.size;
+  return n;
+}
+
+function getFinishedBooks() {
+  return BOOKS.filter(b => readCount(b.id) === b.chapters).length;
+}
+
+function updateGlobalStats() {
+  const read = getTotalRead();
+  const pct = Math.round(read / TOTAL_CHAPTERS * 100);
+  document.getElementById('stat-read').textContent = read;
+  document.getElementById('stat-remaining').textContent = TOTAL_CHAPTERS - read;
+  document.getElementById('stat-books').textContent = getFinishedBooks();
+  document.getElementById('overall-fill').style.width = pct + '%';
+  document.getElementById('overall-pct').textContent = pct + ' %';
+  updateSheetDates();
+}
+
+// ── TAB / FILTER ───────────────────────────────────────────────────────
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('[data-tab]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === tab);
+  });
+  renderBooks();
+}
+
+function getFilteredBooks() {
+  const q = document.getElementById('search').value.toLowerCase();
+  return BOOKS.filter(b => {
+    const matchTab = currentTab === 'all' || b.testament === currentTab;
+    const matchQ = b.name.toLowerCase().includes(q);
+    return matchTab && matchQ;
+  });
+}
+
+// ── RENDER ─────────────────────────────────────────────────────────────
+function barColor(pct) {
+  if (pct === 100) return '#34d399';
+  if (pct >= 50)  return '#fbbf24';
+  return '#6b7cff';
+}
+
+function renderBooks() {
+  const grid = document.getElementById('books-grid');
+  const books = getFilteredBooks();
+
+  if (books.length === 0) {
+    grid.innerHTML = '<div class="empty-msg">Kein Buch gefunden.</div>';
+    return;
+  }
+
+  let html = '';
+  if (currentTab === 'all') {
+    const at = books.filter(b => b.testament === 'at');
+    const nt = books.filter(b => b.testament === 'nt');
+    if (at.length) {
+      const atRead  = at.reduce((s, b) => s + readCount(b.id), 0);
+      const atTotal = at.reduce((s, b) => s + b.chapters, 0);
+      html += `<div class="section-header">
+        <div class="section-title">Altes Testament</div>
+        <div class="section-line"></div>
+        <div class="section-stat">${atRead}/${atTotal} Kapitel</div>
+      </div>`;
+      html += at.map(b => bookCardHTML(b)).join('');
+    }
+    if (nt.length) {
+      const ntRead  = nt.reduce((s, b) => s + readCount(b.id), 0);
+      const ntTotal = nt.reduce((s, b) => s + b.chapters, 0);
+      html += `<div class="section-header">
+        <div class="section-title">Neues Testament</div>
+        <div class="section-line"></div>
+        <div class="section-stat">${ntRead}/${ntTotal} Kapitel</div>
+      </div>`;
+      html += nt.map(b => bookCardHTML(b)).join('');
+    }
+  } else {
+    const sectionRead  = books.reduce((s, b) => s + readCount(b.id), 0);
+    const sectionTotal = books.reduce((s, b) => s + b.chapters, 0);
+    html += `<div class="section-header">
+      <div class="section-line"></div>
+      <div class="section-stat">${sectionRead}/${sectionTotal} Kapitel gelesen</div>
+    </div>`;
+    html += books.map(b => bookCardHTML(b)).join('');
+  }
+
+  grid.innerHTML = html;
+  attachEvents();
+}
+
+function bookCardHTML(book) {
+  const read  = readCount(book.id);
+  const pct   = Math.round(read / book.chapters * 100);
+  const done  = pct === 100;
+  const isExp = expanded.has(book.id);
+  const color = barColor(pct);
+
+  const chaptersHTML = Array.from({length: book.chapters}, (_, i) => {
+    const ch = i + 1;
+    const r  = isRead(book.id, ch);
+    return `<div class="chapter-btn ${r ? 'read' : ''}" data-book="${book.id}" data-ch="${ch}" title="Kapitel ${ch}">${ch}</div>`;
+  }).join('');
+
+  return `<div class="book-card ${isExp ? 'expanded' : ''}" id="book-${book.id}">
+    <div class="book-header" data-toggle="${book.id}">
+      <div class="book-num">${book.id}</div>
+      <div class="book-name">${book.name}${done ? ' ✓' : ''}</div>
+      <div class="book-progress-text ${done ? 'done' : ''}">${read}/${book.chapters}</div>
+      <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <polyline points="6 9 12 15 18 9"/>
+      </svg>
+    </div>
+    <div class="book-bar-wrap">
+      <div class="book-bar">
+        <div class="book-bar-fill" style="width:${pct}%;background:${color}"></div>
+      </div>
+    </div>
+    <div class="chapters-section">
+      <div class="chapter-actions">
+        <button class="btn-sm" onclick="markAllBook(${book.id}, true)">Alle abhaken</button>
+        <button class="btn-sm danger" onclick="markAllBook(${book.id}, false)">Alle entfernen</button>
+      </div>
+      <div class="chapters-grid">${chaptersHTML}</div>
+    </div>
+  </div>`;
+}
+
+function attachEvents() {
+  document.querySelectorAll('[data-toggle]').forEach(el => {
+    el.addEventListener('click', () => {
+      const id = parseInt(el.dataset.toggle);
+      if (expanded.has(id)) expanded.delete(id);
+      else expanded.add(id);
+      const card = document.getElementById('book-' + id);
+      if (card) card.classList.toggle('expanded', expanded.has(id));
+    });
+  });
+
+  document.querySelectorAll('.chapter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const bookId = parseInt(btn.dataset.book);
+      const ch     = parseInt(btn.dataset.ch);
+      toggleChapter(bookId, ch);
+    });
+  });
+}
+
+function updateBookCard(bookId) {
+  const book = BOOKS.find(b => b.id === bookId);
+  if (!book) return;
+  const card = document.getElementById('book-' + bookId);
+  if (!card) return;
+
+  const read  = readCount(bookId);
+  const pct   = Math.round(read / book.chapters * 100);
+  const done  = pct === 100;
+  const color = barColor(pct);
+
+  const pt = card.querySelector('.book-progress-text');
+  pt.textContent = `${read}/${book.chapters}`;
+  pt.className = `book-progress-text ${done ? 'done' : ''}`;
+
+  const nameEl = card.querySelector('.book-name');
+  nameEl.textContent = `${book.name}${done ? ' ✓' : ''}`;
+
+  const fill = card.querySelector('.book-bar-fill');
+  fill.style.width  = pct + '%';
+  fill.style.background = color;
+
+  card.querySelectorAll('.chapter-btn').forEach(btn => {
+    const ch = parseInt(btn.dataset.ch);
+    btn.classList.toggle('read', isRead(bookId, ch));
+  });
+
+  if (done) showToast(`${book.name} abgeschlossen! 🎉`);
+}
+
+// ── CONTROLS ───────────────────────────────────────────────────────────
+function expandAll() {
+  getFilteredBooks().forEach(b => expanded.add(b.id));
+  renderBooks();
+}
+
+function collapseAll() {
+  getFilteredBooks().forEach(b => expanded.delete(b.id));
+  renderBooks();
+}
+
+function confirmReset() {
+  if (confirm('Wirklich alle Fortschritte zurücksetzen? Diese Aktion kann nicht rückgängig gemacht werden.')) {
+    state   = {};
+    endDate = null;
+    saveState();
+    localStorage.removeItem('bibletracker_enddate');
+    updateGlobalStats();
+    renderBooks();
+    showToast('Fortschritt zurückgesetzt.');
+  }
+}
+
+// ── CHEER ──────────────────────────────────────────────────────────────
+const CHEER_MSGS = [
+  "Super gemacht! ✨", "Toll! Weiter so! 🌟",
+  "Du bist großartig! 💫", "Noch ein Kapitel geschafft! 🎉",
+  "Wunderbar! 🌸", "Prima! 🥰", "Klasse! ⭐"
+];
+function showCheer() {
+  showToast(CHEER_MSGS[Math.floor(Math.random() * CHEER_MSGS.length)]);
+}
+function todayISO() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+// ── EXPORT / IMPORT ────────────────────────────────────────────────────
+function openIODialog()  { document.getElementById('io-overlay').classList.add('open'); }
+function closeIODialog() { document.getElementById('io-overlay').classList.remove('open'); }
+
+function exportData() {
+  const out = {};
+  for (const [k, v] of Object.entries(state)) out[k] = [...v];
+  const payload = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    chapters:   out,
+    startDate:  startDate || null,
+    endDate:    endDate   || null,
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `bibeltracker-${todayISO()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Fortschritt exportiert!');
+}
+
+function importData(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const payload = JSON.parse(ev.target.result);
+      if (!payload.chapters) throw new Error('Ungültige Datei');
+      if (!confirm(`Fortschritt aus "${file.name}" laden?\nAktueller Fortschritt wird überschrieben.`)) {
+        e.target.value = '';
+        return;
+      }
+      state = {};
+      for (const [k, v] of Object.entries(payload.chapters)) {
+        state[k] = new Set(v);
+      }
+      saveState();
+      if (payload.startDate) {
+        startDate = payload.startDate;
+        localStorage.setItem('bibletracker_startdate', startDate);
+      }
+      if (payload.endDate) {
+        endDate = payload.endDate;
+        localStorage.setItem('bibletracker_enddate', endDate);
+      }
+      updateGlobalStats();
+      renderBooks();
+      closeIODialog();
+      showToast('Fortschritt erfolgreich wiederhergestellt!');
+    } catch(err) {
+      alert('Fehler beim Laden: ' + err.message);
+    }
+    e.target.value = '';
+  };
+  reader.readAsText(file);
+}
+
+// ── DATES ──────────────────────────────────────────────────────────────
+function fmtDate(iso) {
+  if (!iso) return null;
+  const [y, m, d] = iso.split('-');
+  return `${d}.${m}.${y}`;
+}
+
+function daysBetween(isoA, isoB) {
+  const a = new Date(isoA);
+  const b = new Date(isoB);
+  return Math.round(Math.abs((b - a) / 86400000));
+}
+
+function updateSheetDates() {
+  const startEl    = document.getElementById('sheet-start-date');
+  const endEl      = document.getElementById('sheet-end-date');
+  const durEl      = document.getElementById('sheet-duration');
+  const durRow     = document.getElementById('sheet-duration-row');
+
+  startEl.textContent = startDate ? fmtDate(startDate) : 'Eintragen';
+  endEl.textContent   = endDate   ? fmtDate(endDate)   : '—';
+
+  if (startDate && endDate) {
+    const days = daysBetween(startDate, endDate);
+    durEl.textContent       = `${days} Tag${days === 1 ? '' : 'e'}`;
+    durRow.style.display    = '';
+  } else {
+    durRow.style.display = 'none';
+  }
+}
+
+function openDateDialog() {
+  const input  = document.getElementById('date-input');
+  input.value  = startDate || new Date().toISOString().slice(0, 10);
+  document.getElementById('date-overlay').classList.add('open');
+}
+
+function closeDateDialog() {
+  document.getElementById('date-overlay').classList.remove('open');
+}
+
+function saveStartDate() {
+  const val = document.getElementById('date-input').value;
+  if (!val) return;
+  startDate = val;
+  localStorage.setItem('bibletracker_startdate', startDate);
+  closeDateDialog();
+  updateSheetDates();
+  showToast('Startdatum gespeichert: ' + fmtDate(startDate));
+}
+
+function checkCompletion() {
+  if (getTotalRead() < TOTAL_CHAPTERS) return;
+  if (endDate) return;
+  endDate = todayISO();
+  localStorage.setItem('bibletracker_enddate', endDate);
+  updateSheetDates();
+  showCompletionBanner();
+}
+
+function showCompletionBanner() {
+  document.getElementById('c-start').textContent = startDate ? fmtDate(startDate) : '—';
+  document.getElementById('c-end').textContent   = fmtDate(endDate);
+  if (startDate) {
+    const days = daysBetween(startDate, endDate);
+    document.getElementById('c-days').textContent       = days;
+    document.getElementById('c-days-label').textContent = `Tag${days === 1 ? '' : 'e'} Lesezeit`;
+  } else {
+    document.getElementById('c-days').textContent       = '';
+    document.getElementById('c-days-label').textContent = '';
+  }
+  document.getElementById('completion-overlay').classList.add('open');
+}
+
+function closeCompletion() {
+  document.getElementById('completion-overlay').classList.remove('open');
+}
+
+// ── MORE SHEET ─────────────────────────────────────────────────────────
+function openMoreSheet() {
+  updateSheetDates();
+  document.getElementById('sheet-overlay').classList.add('open');
+}
+
+function closeMoreSheet() {
+  document.getElementById('sheet-overlay').classList.remove('open');
+}
+
+function handleSheetOverlayClick(e) {
+  if (e.target.id === 'sheet-overlay') closeMoreSheet();
+}
+
+// Close overlays on backdrop click
+document.addEventListener('click', e => {
+  if (e.target.id === 'date-overlay')       closeDateDialog();
+  if (e.target.id === 'completion-overlay') closeCompletion();
+  if (e.target.id === 'io-overlay')         closeIODialog();
+});
+
+// ── TOAST ──────────────────────────────────────────────────────────────
+let toastTimer = null;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ── INIT ───────────────────────────────────────────────────────────────
+loadState();
+updateGlobalStats();
+renderBooks();
+
+// ── SERVICE WORKER ─────────────────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/bibeltracker/sw.js', { scope: '/bibeltracker/' }).catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
